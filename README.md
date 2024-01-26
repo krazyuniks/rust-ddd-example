@@ -39,6 +39,6 @@ cargo run
 ## Query DB from shell
 
 ```console
-psql postgresql://postgres:password@localhost/todos -c 'select * from todos'
+psql postgresql://postgres:password@localhost/users -c 'select * from users'
 ```
 
