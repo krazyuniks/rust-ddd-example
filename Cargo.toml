@@ -1,0 +1,16 @@
+[package]
+name = "ddd-example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+guid-create = "0.3.1"
+readonly = "0.2.12"
+uuid = { features = ["v4"], version = "1.7.0" } 
+sqlx = { version = "0.7.3", features = [ "postgres", "runtime-tokio-native-tls" ] }
+futures = "0.3.30"
+tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros"]}
+async-trait = "0.1.77"
+anyhow = "1.0.79"
