@@ -1,4 +1,6 @@
-# TODOs Example
+# User DDD Example
+
+DDD without repository pattern, see [https://softwareengineering.stackexchange.com/questions/441348/in-the-oo-ddd-does-the-domain-object-access-the-repository-directly]
 
 ## Setup
 
@@ -6,46 +8,37 @@
 
 2. Declare the database URL
 
-    ```
-    export DATABASE_URL="postgres://postgres:password@localhost/todos"
+    ```console
+    export DATABASE_URL="postgres://postgres:password@localhost/users"
     ```
 
     Access from command line like:
-    ```
-    psql postgresql://postgres:password@localhost/todos -c 'select * from t
-odos'
+
+    ```console
+    psql postgresql://postgres:password@localhost/users -c 'select * from users'
     ```
 
 3. Create the database.
 
-    ```
-    $ sqlx db create
+    ```console
+    sqlx db create
     ```
 
 4. Run sql migrations
 
-    ```
-    $ sqlx migrate run
+    ```console
+    sqlx migrate run
     ```
 
 ## Usage
 
-Add a todo 
-
-```
-cargo run -- add "todo description"
-```
-
-Complete a todo.
-
-```
-cargo run -- done <todo id>
-```
-
-List all todos
-
-```
+```console
 cargo run
 ```
 
+## Query DB from shell
+
+```console
 psql postgresql://postgres:password@localhost/todos -c 'select * from todos'
+```
+
