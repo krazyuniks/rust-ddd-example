@@ -1,7 +1,6 @@
-use async_trait::async_trait;
-use sqlx::{query, Transaction};
+use sqlx::PgPool;
 
-pub async fn connect() -> sqlx::PgPool {
+pub async fn connect() -> PgPool {
     let conn_str = String::from("postgresql://postgres:password@localhost/users");
     let conn_pool = sqlx::PgPool::connect(&conn_str).await;
 

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use readonly;
+use sqlx::error::BoxDynError;
 use sqlx::{query, Transaction};
 use std::cmp::{PartialEq, PartialOrd};
 use uuid::Uuid;
@@ -213,6 +214,8 @@ impl<'a> UserTrait<'a> for User {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("Saving (and consuming) user: {:?}", self.username);
 
+        let uname = String::from(self.username.clone());
+
         let res = query!(
             "INSERT INTO users (id, username, password, user_roles) VALUES ($1, $2, $3, $4)",
             String::from(self.id),
@@ -225,17 +228,19 @@ impl<'a> UserTrait<'a> for User {
 
         if res.is_err() {
             if res
+                .as_ref()
                 .unwrap_err()
                 .as_database_error()
                 .unwrap()
                 .is_unique_violation()
             {
-                println!("username already exists");
-                return Err("Username already exists".into());
+                return Err(BoxDynError::from(format!(
+                    "Username \"{}\" already exists, db error: {:#?}",
+                    uname, res
+                )));
             }
 
-            // TODO: handle other errors
-            return Err("Insert error".into());
+            return Err(BoxDynError::from(format!("Unknown DB error: {:#?}", res)));
         }
 
         Ok(())

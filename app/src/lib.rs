@@ -1,11 +1,11 @@
-mod application;
 mod db;
+mod entities;
+use sqlx::error::BoxDynError;
 use sqlx::Transaction;
 
-use application::entities::user::{Password, User, UserName, UserRoles, UserTrait};
+use entities::user::{Password, User, UserName, UserRoles, UserTrait};
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting User test");
 
     let db = db::connect().await;
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .execute(&db)
         .await
         .expect("truncate table users");
-    */
+        */
 
     let mut tx: Transaction<'static, sqlx::Postgres> = db.begin().await.unwrap();
 
@@ -28,12 +28,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match user.save(&mut tx).await {
         Ok(_) => println!("user saved in tx"),
-        Err(e) => panic!("user error: {}", e),
+        Err(e) => return Err(BoxDynError::from(format!("{} {}", String::from("asdf"), e))),
     }
 
     match tx.commit().await {
         Ok(_) => println!("tx commited"),
-        Err(e) => println!("tx error: {}", e),
+        Err(e) => return Err(BoxDynError::from(format!("{} {}", String::from("asdf"), e))),
     };
 
     Ok(())
