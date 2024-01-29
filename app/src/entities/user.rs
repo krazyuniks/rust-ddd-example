@@ -1,29 +1,23 @@
 use async_trait::async_trait;
-use readonly;
 use sqlx::error::BoxDynError;
 use sqlx::{query, Transaction};
 use std::cmp::{PartialEq, PartialOrd};
+use std::format;
 use uuid::Uuid;
 
+#[non_exhaustive]
 #[derive(PartialEq, Clone, PartialOrd, Ord, Eq, Debug)]
-#[readonly::make]
 pub struct UserId(String);
 
 impl UserId {
-    pub fn value(&self) -> &str {
-        self.0.as_str()
+    fn new() -> Self {
+        UserId(Uuid::new_v4().simple().to_string())
     }
 }
 
-impl TryFrom<String> for UserId {
-    type Error = ();
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        if s.len() == 32 {
-            Ok(Self(s))
-        } else {
-            Err(()) // not a guid without hyphens
-        }
+impl From<&UserId> for String {
+    fn from(s: &UserId) -> Self {
+        s.0.clone()
     }
 }
 
@@ -33,15 +27,15 @@ impl From<UserId> for String {
     }
 }
 
+#[non_exhaustive]
 #[derive(Clone, Debug)]
-#[readonly::make]
 pub struct UserName(String);
 
 impl TryFrom<String> for UserName {
     type Error = ();
 
     fn try_from(n: String) -> Result<Self, Self::Error> {
-        if n.is_empty() {
+        if n.is_empty() || n.len() > 255 || n.len() < 4 {
             Err(())
         } else {
             Ok(Self(n))
@@ -55,23 +49,14 @@ impl From<UserName> for String {
     }
 }
 
-#[cfg(test)]
-impl UserName {
-    pub fn pikachu() -> Self {
-        Self(String::from("Pikachu"))
-    }
-
-    pub fn charmander() -> Self {
-        Self(String::from("Charmander"))
-    }
-
-    pub fn bad() -> Self {
-        Self(String::from(""))
+impl From<&UserName> for String {
+    fn from(n: &UserName) -> Self {
+        n.0.clone()
     }
 }
 
+#[non_exhaustive]
 #[derive(Clone, Debug)]
-#[readonly::make]
 pub struct UserRoles(Vec<UserRole>);
 
 impl TryFrom<Vec<String>> for UserRoles {
@@ -93,6 +78,25 @@ impl TryFrom<Vec<String>> for UserRoles {
     }
 }
 
+impl TryFrom<&str> for UserRoles {
+    type Error = ();
+
+    fn try_from(ts: &str) -> Result<Self, Self::Error> {
+        if ts.is_empty() {
+            Err(())
+        } else {
+            let mut pts = vec![];
+            for t in ts.split(",") {
+                match UserRole::try_from(String::from(t)) {
+                    Ok(pt) => pts.push(pt),
+                    _ => return Err(()),
+                }
+            }
+            Ok(Self(pts))
+        }
+    }
+}
+
 impl From<UserRoles> for Vec<String> {
     fn from(pts: UserRoles) -> Self {
         let mut ts = vec![];
@@ -100,6 +104,16 @@ impl From<UserRoles> for Vec<String> {
             ts.push(String::from(pt));
         }
         ts
+    }
+}
+
+impl From<&UserRoles> for String {
+    fn from(pts: &UserRoles) -> Self {
+        let mut ts = vec![];
+        for pt in pts.0.iter() {
+            ts.push(String::from(pt));
+        }
+        ts.join(",")
     }
 }
 
@@ -130,13 +144,28 @@ impl From<UserRole> for String {
     }
 }
 
+impl From<&UserRole> for String {
+    fn from(t: &UserRole) -> Self {
+        String::from(match t {
+            UserRole::USER => "USER",
+            UserRole::ADMIN => "ADMIN",
+        })
+    }
+}
+
+#[non_exhaustive]
 #[derive(Clone, Debug)]
-#[readonly::make]
 pub struct Password(String);
 
-impl Password {
-    pub fn value(&self) -> &str {
-        self.0.as_str()
+impl From<Password> for String {
+    fn from(p: Password) -> Self {
+        p.0
+    }
+}
+
+impl From<&Password> for String {
+    fn from(p: &Password) -> Self {
+        p.0.clone()
     }
 }
 
@@ -154,31 +183,62 @@ impl TryFrom<String> for Password {
     }
 }
 
-#[derive(Debug)]
-#[readonly::make]
-pub struct User {
-    pub id: UserId,
+pub struct CreateUserDto {
     pub username: UserName,
-    password: Password,
+    pub password: Password,
     pub roles: UserRoles,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
+    pub first_name: String,
+    pub last_name: String,
     pub mobile_phone: Option<String>,
+}
+
+#[non_exhaustive]
+#[derive(Debug)]
+pub struct User {
+    id: UserId,
+    username: UserName,
+    password: Password,
+    roles: UserRoles,
+    first_name: String,
+    last_name: String,
+    mobile_phone: Option<String>,
     //pub address: Address,
 }
 
 impl User {
-    pub fn new(username: UserName, password: Password, roles: UserRoles) -> Self {
-        Self {
-            id: UserId::try_from(Uuid::new_v4().simple().to_string())
-                .expect("canny create user id"),
-            username,
-            password,
-            roles,
-            first_name: None,
-            last_name: None,
-            mobile_phone: None,
+    pub fn new(dto: CreateUserDto) -> Self {
+        User {
+            id: UserId::new(),
+            username: dto.username,
+            password: dto.password,
+            roles: dto.roles,
+            first_name: dto.first_name,
+            last_name: dto.last_name,
+            mobile_phone: dto.mobile_phone,
         }
+    }
+
+    pub fn get_id(&self) -> &str {
+        self.id.0.as_str()
+    }
+
+    pub fn get_username(&self) -> &str {
+        self.username.0.as_str()
+    }
+
+    pub fn get_mobile_phone(&self) -> &str {
+        match &self.mobile_phone {
+            Some(p) => p,
+            None => "",
+        }
+    }
+
+    pub fn get_roles(&self) -> String {
+        String::from(&self.roles)
+    }
+
+    pub fn get_password(&self) -> &str {
+        &self.password.0.as_str()
     }
 }
 
@@ -186,21 +246,13 @@ impl User {
 fn find_by_username(username: UserName) -> Option<User>;
 fn find_by_role(role: UserRole) -> Option<Vec<User>>;
 fn find_all() -> Option<Vec<User>>;
+fn find_by_id() -> Option<Vec<User>>;
 */
-
-pub fn find_by_id(id: UserId) -> Option<User> {
-    let user = User::new(
-        UserName::try_from(String::from("Pikachu")).expect("bad username"),
-        Password::try_from(String::from("asdfasdfasfdf")).expect("bad password"),
-        UserRoles::try_from(vec![String::from("USER")]).unwrap(),
-    );
-    Some(user)
-}
 
 #[async_trait]
 pub trait UserTrait<'a> {
     async fn save(
-        self,
+        &self,
         tx: &'a mut Transaction<'static, sqlx::Postgres>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
     async fn delete(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -209,7 +261,7 @@ pub trait UserTrait<'a> {
 #[async_trait]
 impl<'a> UserTrait<'a> for User {
     async fn save(
-        self,
+        &self,
         tx: &'a mut Transaction<'static, sqlx::Postgres>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("Saving (and consuming) user: {:?}", self.username);
@@ -217,11 +269,14 @@ impl<'a> UserTrait<'a> for User {
         let uname = String::from(self.username.clone());
 
         let res = query!(
-            "INSERT INTO users (id, username, password, user_roles) VALUES ($1, $2, $3, $4)",
-            String::from(self.id),
-            String::from(self.username),
-            self.password.value(),
-            Vec::from(self.roles).join(",")
+            "INSERT INTO users (id, username, password, user_roles, first_name, last_name, mobile_phone) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            &self.get_id(),
+            &self.get_username(),
+            &self.get_password(),
+            &self.get_roles(),
+            &self.first_name,
+            &self.last_name,
+            &self.get_mobile_phone(),
         )
         .execute(&mut **tx)
         .await;
@@ -252,30 +307,4 @@ impl<'a> UserTrait<'a> for User {
 }
 
 #[cfg(test)]
-mod test {
-    use super::UserId;
-
-    #[test]
-    fn test_userid_short() {
-        assert_eq!(
-            UserId::try_from(String::from("afb46bdb7d414f5bb9ef3f2e760a4e0")),
-            Err(())
-        );
-    }
-
-    #[test]
-    fn test_userid_long() {
-        assert_eq!(
-            UserId::try_from(String::from("1234567890123456789012345678901xx")),
-            Err(())
-        );
-    }
-
-    #[test]
-    fn test_userid_ok() {
-        assert_eq!(
-            UserId::try_from(String::from("afb46bdb7d414f5bb9ef3f2e760a4e0e")),
-            Ok(UserId(String::from("afb46bdb7d414f5bb9ef3f2e760a4e0e")))
-        );
-    }
-}
+mod test {}
