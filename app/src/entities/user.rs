@@ -183,15 +183,6 @@ impl TryFrom<String> for Password {
     }
 }
 
-pub struct CreateUserDto {
-    pub username: UserName,
-    pub password: Password,
-    pub roles: UserRoles,
-    pub first_name: String,
-    pub last_name: String,
-    pub mobile_phone: Option<String>,
-}
-
 #[non_exhaustive]
 #[derive(Debug)]
 pub struct User {
@@ -202,19 +193,25 @@ pub struct User {
     first_name: String,
     last_name: String,
     mobile_phone: Option<String>,
-    //pub address: Address,
 }
 
 impl User {
-    pub fn new(dto: CreateUserDto) -> Self {
+    pub fn new(
+        username: UserName,
+        password: Password,
+        roles: UserRoles,
+        first_name: String,
+        last_name: String,
+        mobile_phone: Option<String>,
+    ) -> Self {
         User {
             id: UserId::new(),
-            username: dto.username,
-            password: dto.password,
-            roles: dto.roles,
-            first_name: dto.first_name,
-            last_name: dto.last_name,
-            mobile_phone: dto.mobile_phone,
+            username,
+            password,
+            roles,
+            first_name,
+            last_name,
+            mobile_phone,
         }
     }
 
@@ -255,6 +252,7 @@ pub trait UserTrait<'a> {
         &self,
         tx: &'a mut Transaction<'static, sqlx::Postgres>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
     async fn delete(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
@@ -269,7 +267,15 @@ impl<'a> UserTrait<'a> for User {
         let uname = String::from(self.username.clone());
 
         let res = query!(
-            "INSERT INTO users (id, username, password, user_roles, first_name, last_name, mobile_phone) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            "INSERT INTO users (
+                id, 
+                username, 
+                password, 
+                user_roles, 
+                first_name, 
+                last_name, 
+                mobile_phone
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
             &self.get_id(),
             &self.get_username(),
             &self.get_password(),
