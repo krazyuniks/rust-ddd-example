@@ -10,8 +10,8 @@ use uuid::Uuid;
 pub struct UserId(String);
 
 impl UserId {
-    fn new() -> Self {
-        UserId(Uuid::new_v4().simple().to_string())
+    pub fn new() -> Self {
+        UserId(Uuid::new_v4().to_string())
     }
 }
 
@@ -157,6 +157,7 @@ impl From<&UserRole> for String {
 #[derive(Clone, Debug)]
 pub struct Password(String);
 
+/*
 impl From<Password> for String {
     fn from(p: Password) -> Self {
         p.0
@@ -168,6 +169,7 @@ impl From<&Password> for String {
         p.0.clone()
     }
 }
+*/
 
 impl TryFrom<String> for Password {
     type Error = ();
@@ -197,6 +199,7 @@ pub struct User {
 
 impl User {
     pub fn new(
+        id: UserId,
         username: UserName,
         password: Password,
         roles: UserRoles,
@@ -205,7 +208,7 @@ impl User {
         mobile_phone: Option<String>,
     ) -> Self {
         User {
-            id: UserId::new(),
+            id,
             username,
             password,
             roles,
@@ -243,7 +246,6 @@ impl User {
 fn find_by_username(username: UserName) -> Option<User>;
 fn find_by_role(role: UserRole) -> Option<Vec<User>>;
 fn find_all() -> Option<Vec<User>>;
-fn find_by_id() -> Option<Vec<User>>;
 */
 
 #[async_trait]
@@ -254,6 +256,32 @@ pub trait UserTrait<'a> {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
     async fn delete(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+}
+
+pub async fn find_by_id(
+    db: &sqlx::Pool<sqlx::Postgres>,
+    id: &str,
+) -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
+    let res = query!("SELECT * FROM users WHERE id = $1", id)
+        .fetch_one(db)
+        .await;
+
+    if res.is_err() {
+        return Err(BoxDynError::from(format!("Unknown DB error: {:#?}", res)));
+    }
+
+    let row = res.unwrap();
+    let user = User::new(
+        UserId(row.id),
+        UserName(row.username),
+        Password("asdf".to_string()),
+        UserRoles::try_from(row.user_roles.as_str()).unwrap(),
+        row.first_name,
+        row.last_name,
+        Some(row.mobile_phone),
+    );
+
+    Ok(user)
 }
 
 #[async_trait]
